@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+coverage.xml
+.coverage
+
+# Node / VSCode Extension
+node_modules/
+*.vsix
+
+# Project-specific (private — not shipped to public)
+.a5c/
+CLAUDE.md
+.claude/
+wiki/
+agents/
+agent.yaml
+SOUL.md
+RULES.md
+DUTIES.md
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+uv.lock
+package.json
+package-lock.json
