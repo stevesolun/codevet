@@ -36,6 +36,8 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from codevet.models import LLMFIT_SUBPROCESS_TIMEOUT_SECONDS
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
@@ -336,7 +338,7 @@ def check_model_fit(
             check=False,
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=LLMFIT_SUBPROCESS_TIMEOUT_SECONDS,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         logger.debug("llmfit invocation failed: %s", exc)

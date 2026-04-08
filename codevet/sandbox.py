@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 import docker
 from docker.errors import DockerException, ImageNotFound, NotFound
 
-from codevet.models import SandboxConfig, SandboxResult
+from codevet.models import DOCKER_HTTP_TIMEOUT_SECONDS, SandboxConfig, SandboxResult
 
 logger = logging.getLogger(__name__)
 
@@ -66,8 +66,8 @@ class Sandbox:
             # Extend the HTTP pool timeout well past Docker Desktop's slow
             # cold-start on Windows + WSL2. Default is 60s which is too
             # tight for containers that run long test suites or large fix
-            # iterations. Cap at 5 minutes.
-            client = docker.from_env(timeout=300)
+            # iterations. See DOCKER_HTTP_TIMEOUT_SECONDS in models.py.
+            client = docker.from_env(timeout=DOCKER_HTTP_TIMEOUT_SECONDS)
             client.ping()
         except (DockerException, ConnectionError) as exc:
             raise DockerSandboxError(

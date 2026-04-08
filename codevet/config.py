@@ -164,37 +164,86 @@ def load_config(explicit: str | Path | None = None) -> CodevetConfig:
 
 
 def example_config_yaml() -> str:
-    """Return a commented example config file for users to copy."""
+    """Return a commented example config file for users to copy.
+
+    The same content is shipped as ``codevet.yaml.example`` at the repo
+    root so users can find it without running a command.
+    """
     return """\
-# codevet.yaml — codevet configuration file
-# Place this file in your project root or at ~/.config/codevet/config.yaml
-
-# Ollama model for test generation and auto-fixing.
-# Pick any model you have pulled with `ollama pull <name>`.
-# codevet runs a preflight hardware-fit check before loading,
-# so you can safely experiment — too-large models will be rejected
-# before they OOM your machine.
+# ============================================================================
+# codevet.yaml  —  codevet configuration file
+# ============================================================================
 #
-# To check a model's hardware fit first, run:
+# Where this file lives (first match wins):
+#   1. ./codevet.yaml in your project root  (recommended)
+#   2. ~/.config/codevet/config.yaml        (user-global, all projects)
+#   3. Built-in defaults (this file documents them)
+#
+# Override any setting from the command line:
+#   codevet fix app.py --model qwen2.5-coder:14b --timeout 600
+#
+# To create a fresh copy of this file in your project, run:
+#   codevet init-config
+#
+# ----------------------------------------------------------------------------
+# Ollama model
+# ----------------------------------------------------------------------------
+# Any model you've pulled with `ollama pull <name>` works. The default is
+# qwen2.5-coder:7b, which is the smallest model strong enough to produce
+# usable security/edge-case test fixes.
+#
+# Codevet runs a preflight hardware-fit check (powered by llmfit) before
+# loading the model, so you can safely experiment — models that won't fit
+# your RAM/VRAM are rejected with a clear error before any inference runs.
+#
+# Recommended models by hardware tier:
+#   - 8 GB RAM, no GPU      -> qwen2.5-coder:1.5b   (fast, weaker fixes)
+#   - 16 GB RAM, no GPU     -> qwen2.5-coder:7b     (default, balanced)
+#   - 32 GB RAM, any GPU    -> qwen2.5-coder:14b    (best fix quality)
+#   - 64 GB RAM + GPU       -> qwen2.5-coder:32b    (maximum quality)
+#
+# To check a model's hardware fit before configuring it, run:
 #   codevet preflight <model>
-#
-# Install llmfit for preflight validation:
-#   https://github.com/AlexsJones/llmfit
-model: gemma2:9b
+model: qwen2.5-coder:7b
 
-# Docker image for the sandbox (must have Python installed).
-# Options: python:3.11-slim, python:3.12-slim, python:3.13-slim
+# ----------------------------------------------------------------------------
+# Docker sandbox
+# ----------------------------------------------------------------------------
+# Docker image for the sandbox. Codevet builds its own custom image
+# (codevet-sandbox:0.1.0) on first run with pytest preinstalled.
+# To use a different base, change this value.
 image: python:3.11-slim
 
-# Hard timeout in seconds (clamped to [5, 300])
-timeout_seconds: 30
+# Hard timeout per sandbox run, in seconds.
+# Clamped to [5, 1800] (30 min ceiling).
+#
+# Default is 120s, which is plenty for sandbox test execution. The Ollama
+# inference calls (test gen + fix iterations) are NOT bounded by this —
+# they're bounded by your model size and CPU/GPU. On CPU, qwen2.5-coder:7b
+# can take 5-7 min per call, and 14b can take 10-15 min per call.
+timeout_seconds: 120
 
-# Max fix iterations (hard capped at 3)
+# Max fix iterations. Hard-capped at 3 by codevet — higher values waste
+# tokens without typically improving the result.
 max_iterations: 3
 
-# Container memory limit
+# Container memory cap (Docker format: "256m", "1g", "2g", ...)
 mem_limit: 256m
 
-# Max processes inside container
+# Cap on the number of processes inside the container.
 pids_limit: 64
+
+# ----------------------------------------------------------------------------
+# Confidence scoring
+# ----------------------------------------------------------------------------
+# The final confidence score is a weighted blend of two signals:
+#
+#   score = (test_pass_rate * pass_weight + critique_score * critique_weight) * 100
+#
+# pass_weight + critique_weight MUST sum to 1.0. The defaults (0.7 / 0.3)
+# err on the side of trusting the test results over the LLM's self-grade.
+# If you trust your model's judgment more than its test fixes, raise the
+# critique_weight (e.g. 0.5 / 0.5).
+confidence_pass_weight: 0.7
+confidence_critique_weight: 0.3
 """

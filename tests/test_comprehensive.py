@@ -43,7 +43,7 @@ class TestTier1Light:
         """SandboxConfig has sane defaults for image, timeout, and security."""
         config = SandboxConfig(project_dir=tmp_path)
         assert config.image == "python:3.11-slim"
-        assert config.timeout_seconds == 30
+        assert config.timeout_seconds == 120
         assert config.read_only is True
         assert config.network_disabled is True
         assert "/tmp" in config.tmpfs_mounts

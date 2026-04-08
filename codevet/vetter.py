@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Literal
 
 import ollama
 
-from codevet.models import GeneratedTest, VetResult
+from codevet.models import DEFAULT_MODEL, GeneratedTest, VetResult
 
 if TYPE_CHECKING:
     from codevet.sandbox import Sandbox
@@ -24,7 +24,7 @@ class VetterError(Exception):
 class Vetter:
     """Generate and execute tests against user-supplied code via Ollama."""
 
-    def __init__(self, model: str = "gemma2:9b") -> None:
+    def __init__(self, model: str = DEFAULT_MODEL) -> None:
         self.model = model
         self._client: ollama.Client | None = None
 

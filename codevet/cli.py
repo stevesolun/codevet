@@ -171,7 +171,12 @@ def fix(
                 else vet_result
             )
             critique_response = _get_critique(vetter, code, fixed_code or code, final_vet)
-            confidence = score_fix(final_vet, critique_response)
+            confidence = score_fix(
+                final_vet,
+                critique_response,
+                pass_weight=effective.confidence_pass_weight,
+                critique_weight=effective.confidence_critique_weight,
+            )
 
             duration = time.monotonic() - start_time
 

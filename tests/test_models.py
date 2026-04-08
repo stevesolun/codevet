@@ -22,7 +22,7 @@ class TestSandboxConfigModel:
         config = SandboxConfig(project_dir=tmp_path)
         assert config.read_only is True
         assert config.network_disabled is True
-        assert config.timeout_seconds == 30
+        assert config.timeout_seconds == 120
 
 
 class TestVetResultModel:

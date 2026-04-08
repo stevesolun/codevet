@@ -1,10 +1,22 @@
-"""Confidence scoring for codevet fix results."""
+"""Confidence scoring for codevet fix results.
+
+Weights for the two components (pass-rate vs LLM critique) are surfaced as
+function arguments and default to ``DEFAULT_CONFIDENCE_PASS_WEIGHT`` and
+``DEFAULT_CONFIDENCE_CRITIQUE_WEIGHT`` from :mod:`codevet.models`. The CLI
+threads ``CodevetConfig`` values through, so end users can tune the weights
+in ``codevet.yaml``.
+"""
 from __future__ import annotations
 
 import json
 import logging
 
-from codevet.models import ConfidenceScore, VetResult
+from codevet.models import (
+    DEFAULT_CONFIDENCE_CRITIQUE_WEIGHT,
+    DEFAULT_CONFIDENCE_PASS_WEIGHT,
+    ConfidenceScore,
+    VetResult,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -79,11 +91,19 @@ def parse_critique_response(response: str) -> tuple[float, str]:
     return clamped / 100.0, reasoning
 
 
-def calculate_confidence(pass_rate: float, critique_score: float) -> ConfidenceScore:
+def calculate_confidence(
+    pass_rate: float,
+    critique_score: float,
+    *,
+    pass_weight: float = DEFAULT_CONFIDENCE_PASS_WEIGHT,
+    critique_weight: float = DEFAULT_CONFIDENCE_CRITIQUE_WEIGHT,
+) -> ConfidenceScore:
     """Compute the final confidence score from pass rate and critique score.
 
-    Formula:
-        score = int(pass_rate * 0.7 * 100 + critique_score * 0.3 * 100)
+    Formula::
+
+        score = int(pass_rate * pass_weight * 100
+                    + critique_score * critique_weight * 100)
         clamped to [0, 100].
 
     Grade thresholds are determined by the ``ConfidenceScore`` model's
@@ -92,6 +112,10 @@ def calculate_confidence(pass_rate: float, critique_score: float) -> ConfidenceS
     Args:
         pass_rate: Fraction of tests passed (0.0 to 1.0).
         critique_score: Normalised critique score (0.0 to 1.0).
+        pass_weight: Weight for the pass-rate component (default 0.7,
+            tunable via ``codevet.yaml``).
+        critique_weight: Weight for the critique component (default 0.3,
+            tunable via ``codevet.yaml``).
 
     Returns:
         A fully populated ``ConfidenceScore``.
@@ -99,7 +123,7 @@ def calculate_confidence(pass_rate: float, critique_score: float) -> ConfidenceS
     safe_pass = max(0.0, min(1.0, pass_rate))
     safe_critique = max(0.0, min(1.0, critique_score))
 
-    raw = safe_pass * 0.7 * 100 + safe_critique * 0.3 * 100
+    raw = safe_pass * pass_weight * 100 + safe_critique * critique_weight * 100
     score = max(0, min(100, int(raw)))
 
     return ConfidenceScore(
@@ -107,8 +131,8 @@ def calculate_confidence(pass_rate: float, critique_score: float) -> ConfidenceS
         pass_rate=safe_pass,
         critique_score=safe_critique,
         explanation=(
-            f"Pass rate: {safe_pass:.0%}, "
-            f"critique: {safe_critique:.0%} "
+            f"Pass rate: {safe_pass:.0%} (w={pass_weight:.2f}), "
+            f"critique: {safe_critique:.0%} (w={critique_weight:.2f}) "
             f"-> weighted score {score}/100"
         ),
     )
@@ -119,7 +143,13 @@ def calculate_confidence(pass_rate: float, critique_score: float) -> ConfidenceS
 # ---------------------------------------------------------------------------
 
 
-def score_fix(vet_result: VetResult, critique_response: str) -> ConfidenceScore:
+def score_fix(
+    vet_result: VetResult,
+    critique_response: str,
+    *,
+    pass_weight: float = DEFAULT_CONFIDENCE_PASS_WEIGHT,
+    critique_weight: float = DEFAULT_CONFIDENCE_CRITIQUE_WEIGHT,
+) -> ConfidenceScore:
     """Score a fix by combining test pass rate with LLM critique.
 
     This is the primary entry point used by the pipeline.
@@ -127,13 +157,20 @@ def score_fix(vet_result: VetResult, critique_response: str) -> ConfidenceScore:
     Args:
         vet_result: The test-execution result to score.
         critique_response: Raw JSON string returned by the Ollama critique call.
+        pass_weight: Weight for the pass-rate component (default 0.7).
+        critique_weight: Weight for the critique component (default 0.3).
 
     Returns:
         A ``ConfidenceScore`` combining both signals.
     """
     pass_rate = calculate_pass_rate(vet_result)
     critique_score, reasoning = parse_critique_response(critique_response)
-    confidence = calculate_confidence(pass_rate, critique_score)
+    confidence = calculate_confidence(
+        pass_rate,
+        critique_score,
+        pass_weight=pass_weight,
+        critique_weight=critique_weight,
+    )
 
     # Enrich the explanation with critique reasoning when available.
     if reasoning and reasoning != "Critique response could not be parsed; using default score.":

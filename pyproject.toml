@@ -56,6 +56,15 @@ line-length = 100
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "TCH"]
 
+[tool.ruff.lint.per-file-ignores]
+# Test files have legitimate exemptions:
+#  - E501: long inline strings/fixtures are fine in tests
+#  - N802: test method names like test_grade_A intentionally include the
+#          grade letter under test (matches the model's grade enum)
+#  - SIM117: nested `with pytest.raises():` + context manager is the
+#            idiomatic pytest pattern
+"tests/**/*.py" = ["E501", "N802", "SIM117"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true

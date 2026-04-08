@@ -10,7 +10,14 @@ from typing import TYPE_CHECKING
 
 import ollama
 
-from codevet.models import FixAttempt, FixResult, VetResult
+from codevet.models import (
+    DEFAULT_FIX_ITERATIONS,
+    DEFAULT_MODEL,
+    MAX_FIX_ITERATIONS_HARD_CAP,
+    FixAttempt,
+    FixResult,
+    VetResult,
+)
 from codevet.vetter import combine_test_cases
 
 if TYPE_CHECKING:
@@ -26,9 +33,13 @@ class FixerError(Exception):
 class Fixer:
     """Iteratively fix code until all generated tests pass."""
 
-    def __init__(self, model: str = "gemma2:9b", max_iterations: int = 3) -> None:
+    def __init__(
+        self,
+        model: str = DEFAULT_MODEL,
+        max_iterations: int = DEFAULT_FIX_ITERATIONS,
+    ) -> None:
         self.model = model
-        self.max_iterations = min(max_iterations, 3)
+        self.max_iterations = min(max_iterations, MAX_FIX_ITERATIONS_HARD_CAP)
         self._client: ollama.Client | None = None
 
     # ------------------------------------------------------------------
