@@ -209,8 +209,8 @@ What happens:
 Generate a config file for your project:
 
 ```bash
-codevet init-config              # writes ./codevet.yaml
-codevet init-config --user       # writes ~/.config/codevet/config.yaml (applies everywhere)
+codevet init-config                                              # writes ./codevet.yaml
+codevet init-config --path ~/.config/codevet/config.yaml        # writes user-global config
 ```
 
 The generated file is fully commented. A reference copy is also at [`codevet.yaml.example`](./codevet.yaml.example) in this repo.
@@ -304,7 +304,7 @@ codevet preflight <model>
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--user` | Write to `~/.config/codevet/config.yaml` instead of `./codevet.yaml` | `false` |
+| `--path`, `-p` | Where to write the config file | `./codevet.yaml` |
 | `--force`, `-f` | Overwrite an existing file | `false` |
 
 ### `codevet preflight`
@@ -404,7 +404,7 @@ For full third-party credits, see [`NOTICE.md`](./NOTICE.md).
 # Clone and setup
 git clone https://github.com/stevesolun/codevet.git
 cd codevet
-uv sync --dev
+uv sync --extra dev
 
 # Run the test suite (230 tests)
 uv run pytest -q
