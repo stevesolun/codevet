@@ -2,6 +2,7 @@
 
 **AI Code Vet / Auto-Fixer** — Catch the bugs AI coding tools miss.
 
+[![PyPI version](https://img.shields.io/pypi/v/codevet.svg)](https://pypi.org/project/codevet/)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Tests: 230 passing](https://img.shields.io/badge/tests-230%20passing-brightgreen.svg)]()
@@ -16,7 +17,8 @@ AI tools like Claude Code, Cursor, and Copilot generate code that's *almost* rig
 ## Table of Contents
 
 - [What you get](#what-you-get)
-- [Install for dummies (step by step)](#install-for-dummies-step-by-step)
+- [Install](#install)
+- [Use cases](#use-cases)
 - [First run](#first-run)
 - [Configuration (`codevet.yaml`)](#configuration-codevetyaml)
 - [Picking the right model](#picking-the-right-model)
@@ -60,85 +62,110 @@ Fix: Success in 2 iteration(s)
 
 ---
 
-## Install for dummies (step by step)
+## Install
 
-Codevet has three external dependencies: Python, Docker, and Ollama. The steps below assume you have **none** of them installed. If you already have one, just skip that section.
+### Prerequisites
 
-### 1. Install Python 3.11+
+You need three things running before codevet will work:
 
-| Platform | Instructions |
-|---|---|
-| **Windows** | Download from [python.org](https://www.python.org/downloads/windows/). During install, **tick "Add python.exe to PATH"**. |
-| **macOS** | `brew install python@3.11` (install Homebrew from [brew.sh](https://brew.sh) first if needed). |
-| **Linux** | `sudo apt install python3.11 python3.11-venv` (Debian/Ubuntu) or `sudo dnf install python3.11` (Fedora). |
+| Dependency | What it does | Install |
+|---|---|---|
+| **Python 3.11+** | Runs codevet itself | [python.org](https://www.python.org/downloads/) · `brew install python@3.11` · `apt install python3.11` |
+| **Docker** | Isolated sandbox for generated tests | [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/) · `brew install --cask docker` |
+| **Ollama** | Local LLM for test generation and auto-fix | [ollama.com/download](https://ollama.com/download) · `curl -fsSL https://ollama.com/install.sh \| sh` |
+
+Verify all three are running:
+
+```bash
+python --version         # 3.11.x or later
+docker ps                # should not print 'Cannot connect'
+ollama list              # should list at least one model
+```
+
+### Install codevet
+
+```bash
+pip install codevet
+```
+
+Or with [`uv`](https://github.com/astral-sh/uv) (faster, manages its own virtualenv):
+
+```bash
+uv tool install codevet
+```
 
 Verify:
 
 ```bash
-python --version          # should print 3.11.x or later
+codevet --help
 ```
 
-### 2. Install Docker
+### Pull a model
 
-Codevet runs all generated tests inside a **Docker container** so they cannot touch your real machine. You need Docker installed and running.
-
-| Platform | Instructions |
-|---|---|
-| **Windows** | Install [Docker Desktop](https://www.docker.com/products/docker-desktop/). Launch it once and wait for the whale icon to turn solid in the system tray. |
-| **macOS** | Install [Docker Desktop](https://www.docker.com/products/docker-desktop/), or `brew install --cask docker` then launch the app. |
-| **Linux** | Follow the official guide for your distro: [docs.docker.com/engine/install](https://docs.docker.com/engine/install/). Add yourself to the `docker` group so you don't need `sudo`: `sudo usermod -aG docker $USER` then log out and back in. |
-
-Verify:
-
-```bash
-docker version            # should print Server: Docker Engine ...
-docker ps                 # should NOT print 'Cannot connect'
-```
-
-### 3. Install Ollama and pull a model
-
-Ollama runs the LLM locally. Codevet talks to it over `http://127.0.0.1:11434`.
-
-| Platform | Instructions |
-|---|---|
-| **Windows / macOS** | Download the installer from [ollama.com/download](https://ollama.com/download) and run it. Ollama starts as a background service automatically. |
-| **Linux** | `curl -fsSL https://ollama.com/install.sh \| sh` |
-
-Pull a model. The default is **qwen2.5-coder:7b** (4.7 GB, needs ~8 GB free RAM):
+The default model is **qwen2.5-coder:7b** (4.7 GB, needs ~8 GB free RAM):
 
 ```bash
 ollama pull qwen2.5-coder:7b
 ```
 
-Verify:
+> **Not sure which model to pick?** See [Picking the right model](#picking-the-right-model) below.
+
+---
+
+## Use cases
+
+### 1. Vet a file from Claude Code or Cursor
+
+You asked an AI to write a new module. It looks plausible. Run it through codevet before you commit:
 
 ```bash
-ollama list               # should list qwen2.5-coder:7b
+codevet fix path/to/ai_generated.py
 ```
 
-> **Don't know which model to pull?** See [Picking the right model](#picking-the-right-model) below. The short answer: 7b for 16 GB laptops, 14b for desktops.
+Codevet generates 6-12 targeted pytest cases — edge cases, type coercion traps, SQL injection probes — runs them in a Docker sandbox, and auto-fixes anything that fails. You get a confidence score and a clean diff to review.
 
-### 4. Install codevet
+### 2. Review a PR diff before merging
 
-We recommend [`uv`](https://github.com/astral-sh/uv), which is faster than pip and handles the virtualenv for you. If you prefer pip, the same commands work without `uv run`.
+AI-assisted PRs often pass CI but fail on edge cases that the tests don't cover. Pipe the diff through codevet:
 
 ```bash
-# Clone the repo
-git clone https://github.com/stevesolun/codevet.git
-cd codevet
-
-# Option A: with uv (recommended)
-uv sync                                # installs codevet + deps in .venv
-uv run codevet --help                  # verify it works
-
-# Option B: with pip
-python -m venv .venv
-source .venv/bin/activate              # Windows: .venv\Scripts\activate
-pip install -e .
-codevet --help
+gh pr diff 42 > pr42.diff
+codevet fix --diff pr42.diff
 ```
 
-That's it. Codevet is installed.
+Codevet analyzes the changed code in the diff, generates tests for it specifically, and reports on what it found.
+
+### 3. Spot-check a specific function
+
+Got a suspicious function you want to probe without running the whole file?
+
+```bash
+# Extract the function to a temp file and vet it
+codevet fix utils/auth.py --model qwen2.5-coder:14b
+```
+
+Use a larger model (`14b`, `32b`) when the code involves security, cryptography, or complex business logic.
+
+### 4. Machine-readable output for scripts and CI
+
+```bash
+codevet fix app.py --json | jq '.score'
+# 92
+
+codevet fix app.py --json | jq '.fix_succeeded'
+# true
+```
+
+Use `--json` to integrate codevet into pre-commit hooks, CI pipelines, or your own tooling.
+
+### 5. Hardware-fit check before switching models
+
+Before changing your `codevet.yaml` to use a larger model:
+
+```bash
+codevet preflight qwen2.5-coder:32b
+# Will tell you if your machine has enough RAM before you commit to it
+```
 
 ---
 
@@ -162,7 +189,7 @@ def calculate_average(numbers):
 Run codevet:
 
 ```bash
-uv run codevet fix buggy.py
+codevet fix buggy.py
 ```
 
 What happens:
@@ -179,18 +206,14 @@ What happens:
 
 ## Configuration (`codevet.yaml`)
 
-Codevet ships with a fully commented example config at the repo root: **[`codevet.yaml.example`](./codevet.yaml.example)**. Copy it next to your project to customize:
+Generate a config file for your project:
 
 ```bash
-cp codevet.yaml.example codevet.yaml
+codevet init-config              # writes ./codevet.yaml
+codevet init-config --user       # writes ~/.config/codevet/config.yaml (applies everywhere)
 ```
 
-…or generate a fresh copy anywhere with:
-
-```bash
-uv run codevet init-config              # writes ./codevet.yaml
-uv run codevet init-config --user       # writes ~/.config/codevet/config.yaml
-```
+The generated file is fully commented. A reference copy is also at [`codevet.yaml.example`](./codevet.yaml.example) in this repo.
 
 ### Where codevet looks for config
 
@@ -203,9 +226,7 @@ First match wins:
 | 3 | `~/.config/codevet/config.yaml` | User-global default |
 | 4 | Built-in defaults | No config file at all |
 
-### What you can configure
-
-Every tunable lives in [`codevet.yaml.example`](./codevet.yaml.example). Highlights:
+### Key settings
 
 | Setting | Default | What it does |
 |---|---|---|
@@ -216,7 +237,7 @@ Every tunable lives in [`codevet.yaml.example`](./codevet.yaml.example). Highlig
 | `mem_limit` | `256m` | Container memory cap |
 | `pids_limit` | `64` | Max processes inside the container |
 | `confidence_pass_weight` | `0.7` | Weight for the test pass-rate component of the confidence score |
-| `confidence_critique_weight` | `0.3` | Weight for the LLM self-critique component (must sum to 1.0 with the above) |
+| `confidence_critique_weight` | `0.3` | Weight for the LLM self-critique component (must sum to 1.0) |
 
 CLI flags always override config file values.
 
@@ -226,7 +247,7 @@ CLI flags always override config file values.
 
 The model is the single biggest factor in fix quality. Codevet runs a **mandatory hardware-fit preflight** before loading any model — if it won't fit your RAM, you'll get a clear error before anything tries to load.
 
-Recommended models, by hardware tier:
+Recommended models by hardware tier:
 
 | Hardware | Model | Size | Fix quality | Notes |
 |---|---|---|---|---|
@@ -238,7 +259,7 @@ Recommended models, by hardware tier:
 Check any model against your hardware first:
 
 ```bash
-uv run codevet preflight qwen2.5-coder:14b
+codevet preflight qwen2.5-coder:14b
 ```
 
 ### CPU vs GPU timing (real numbers)
@@ -260,6 +281,7 @@ If you have a GPU with sufficient VRAM, divide these numbers by 5-10x.
 
 ```bash
 codevet fix <file.py> [OPTIONS]
+codevet fix --diff <pr.diff> [OPTIONS]
 codevet init-config [OPTIONS]
 codevet preflight <model>
 ```
@@ -275,8 +297,8 @@ codevet preflight <model>
 | `--image` | Override the Docker base image | from config |
 | `--json`, `-j` | Emit machine-readable JSON instead of pretty output | `false` |
 | `--diff`, `-d` | Read a unified diff from a file instead of a Python file | — |
-| `--verbose`, `-v` | Show INFO-level phase logging | `false` |
-| `--skip-preflight` | Skip the llmfit hardware-fit check (not recommended) | `false` |
+| `--verbose`, `-v` | Show INFO-level phase logging (includes llmfit SHA-256) | `false` |
+| `--skip-preflight` | Skip the llmfit hardware-fit check | `false` |
 
 ### `codevet init-config`
 
@@ -308,7 +330,7 @@ codevet fix app.py
 └────────────┘  └──────────┘  └────────────┘  └──────────┘  └─────────┘
 ```
 
-**8 modules:** `cli` · `config` · `preflight` · `vetter` · `sandbox` · `fixer` · `scorer` · `models` · `prompts` · `utils`
+**10 modules:** `cli` · `config` · `preflight` · `vetter` · `sandbox` · `fixer` · `scorer` · `models` · `prompts` · `utils`
 
 The auto-fix loop validates every LLM patch against Python's `ast` module before executing it — invalid syntax (e.g. markdown-fenced output) is caught and the iteration is skipped instead of crashing the run.
 
