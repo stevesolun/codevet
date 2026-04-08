@@ -332,6 +332,28 @@ Your project directory is mounted **read-only**. Generated tests cannot modify y
 
 Your code is analyzed locally. Nothing is uploaded. Ollama runs on your machine. The only network call codevet ever makes is the one-time download of the `llmfit` binary from its upstream GitHub release (cached locally afterwards).
 
+### llmfit binary trust model
+
+On first run, codevet downloads the `llmfit` prebuilt binary from **[AlexsJones/llmfit releases](https://github.com/AlexsJones/llmfit/releases)** — the official upstream repository. The binary is MIT-licensed and is never redistributed in this repo.
+
+**What codevet does to help you verify it:**
+
+- The SHA-256 of the downloaded archive is computed and logged at INFO level:
+  ```
+  INFO  llmfit archive SHA-256: <hex digest>
+  INFO  Verify at: https://github.com/AlexsJones/llmfit/releases (download checksum for <asset>)
+  ```
+- Run with `--verbose` to see these lines in your terminal.
+- You can manually compare the logged digest against the release page on GitHub.
+
+**To skip the download entirely**, use `--skip-preflight`:
+
+```bash
+codevet fix app.py --skip-preflight
+```
+
+The check (and binary download) is skipped completely. You lose the hardware-fit warning, but nothing else changes.
+
 ---
 
 ## Credits

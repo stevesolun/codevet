@@ -21,6 +21,7 @@ Users can bypass the check with ``--skip-preflight`` on the CLI.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import platform
@@ -227,9 +228,21 @@ def ensure_llmfit(auto_install: bool = True) -> str | None:
 
 
 def _download(url: str, dest: Path) -> None:
-    """Download *url* to *dest* using stdlib urllib."""
+    """Download *url* to *dest* using stdlib urllib.
+
+    After writing, logs the SHA-256 of the downloaded archive so
+    security-conscious users can verify it matches the official release.
+    """
     with urllib.request.urlopen(url, timeout=60) as response:  # noqa: S310
-        dest.write_bytes(response.read())
+        data = response.read()
+    dest.write_bytes(data)
+    digest = hashlib.sha256(data).hexdigest()
+    logger.info("llmfit archive SHA-256: %s", digest)
+    logger.info(
+        "Verify at: https://github.com/%s/releases (download checksum for %s)",
+        LLMFIT_REPO,
+        dest.name,
+    )
 
 
 def _extract(archive: Path, target_dir: Path) -> None:
